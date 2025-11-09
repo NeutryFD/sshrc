@@ -22,8 +22,6 @@ go build -o sshrc
 # Use custom helpers directory
 ./sshrc --host example.com --helpers ~/my-tools
 
-# Monitor only (no helpers)
-./sshrc --host example.com --monitor-only
 ```
 
 ## Usage
@@ -37,7 +35,8 @@ Flags:
   -u, --user string       SSH user (default: root)
   -p, --port string       SSH port (default: 22)
   -k, --key string        SSH private key (default: ~/.ssh/id_rsa)
-  -m, --monitor-only      Skip helpers, only monitor
+  -m, --monitor-only      Monitor session without copying helpers
+  --local-rc string       Local RC file to copy from marker onward (e.g. ~/.zshrc)
 ```
 
 ## How It Works
@@ -81,3 +80,52 @@ sshrc/
 ## License
 
 See LICENSE file for details.
+
+## Detailed Features
+
+- Sync local shell helpers to a remote SSH session
+- Monitor and auto-clean up temp files on disconnect
+- All temp files managed under `/tmp/sshrc` (configurable via constant)
+- `--local-rc` flag: injects any local RC file (bashrc, zshrc, etc) from a marker onward into the remote temp RC file
+- Robust marker detection (case-insensitive, partial match)
+- Works with bash or zsh (auto-detects remote shell)
+
+## Usage Examples
+
+```sh
+# Basic usage (with helpers)
+go run ./main.go -H <host>
+
+# Use a custom RC file (from marker onward)
+go run ./main.go -H <host> --local-rc /path/to/.zshrc
+
+# Monitor-only mode (no helpers)
+go run ./main.go -H <host> --monitor-only
+```
+
+### Flags
+- `-H, --host <host>`: Remote host to connect to (required)
+- `-p, --port <port>`: SSH port (default: 22)
+- `-u, --user <user>`: SSH user (default: root)
+- `-k, --key <path>`: Path to SSH private key (default: ~/.ssh/id_rsa)
+- `-d, --helpers <dir>`: Path to helpers directory (default: ./helpers)
+- `-m, --monitor-only`: Only monitor session without copying helpers
+- `--local-rc <path>`: Path to local RC file to copy from marker onward (e.g. ~/.zshrc)
+
+- The `--local-rc` flag can point to any shell RC file. Only lines from the marker (e.g. `# HELPERS`) onward are injected.
+- All temp files and helpers are placed under `/tmp/sshrc` for easy cleanup.
+
+## Helpers
+Place your helper scripts in the `helpers/` directory. They will be copied to the remote and sourced automatically.
+
+## Requirements
+- Go 1.19+
+- SSH access to remote host
+- Remote host should have bash or zsh installed
+
+## Development
+- All temp file paths use the `sshrcTmpDir` constant for maintainability.
+- Marker detection is robust: any line containing `# HELPERS` (case-insensitive) is matched.
+
+---
+MIT License
