@@ -19,7 +19,7 @@ var (
 	keyPath     string
 	helpersDir  string
 	monitorOnly bool
-	localRC     bool
+	localRC     string // now holds the path
 )
 
 // NewRootCommand creates the root command
@@ -38,7 +38,7 @@ func NewRootCommand() *cobra.Command {
 	rootCmd.Flags().StringVarP(&keyPath, "key", "k", "", "Path to SSH private key (default: ~/.ssh/id_rsa)")
 	rootCmd.Flags().StringVarP(&helpersDir, "helpers", "d", "", "Path to helpers directory (default: ./helpers)")
 	rootCmd.Flags().BoolVarP(&monitorOnly, "monitor-only", "m", false, "Only monitor session without copying helpers")
-	rootCmd.PersistentFlags().BoolVar(&localRC, "local-rc", false, "Copy local RC up to # HELPERS into remote temp RC file")
+	rootCmd.PersistentFlags().StringVar(&localRC, "local-rc", "", "Path to local RC file to copy from # HELPERS (optional)")
 
 	rootCmd.MarkFlagRequired("host")
 
@@ -113,8 +113,14 @@ func runSSHRC(cmd *cobra.Command, args []string) {
 
 			// Setup custom shell RC
 			logger.LogStep("Setting up custom shell environment")
-			if err := client.SetupShellRC(shellType); err != nil {
-				log.Fatalf("Failed to setup shell RC: %v", err)
+			if localRC != "" {
+				if err := client.SetupShellRCWithLocal(shellType, localRC); err != nil {
+					log.Fatalf("Failed to setup shell RC with local: %v", err)
+				}
+			} else {
+				if err := client.SetupShellRC(shellType); err != nil {
+					log.Fatalf("Failed to setup shell RC: %v", err)
+				}
 			}
 
 			// Open interactive terminal with custom RC

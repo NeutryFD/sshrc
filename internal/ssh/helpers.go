@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"sshrc/internal/logger"
 	"strings"
 )
 
@@ -252,6 +253,92 @@ if [ -n "$SSH_TTY" ]; then
 fi
 
 `, originalRC, originalRC)
+
+	cmd := fmt.Sprintf("cat > %s << 'SSHRC_EOF'\n%s\nSSHRC_EOF\nchmod +x %s", rcFile, rcContent, rcFile)
+
+	if err := session.Run(cmd); err != nil {
+		return fmt.Errorf("failed to create RC file: %v", err)
+	}
+
+	return nil
+}
+
+// SetupShellRCWithLocal appends local RC config (up to # HELPERS) to the generated SSHRC temp RC
+func (c *Client) SetupShellRCWithLocal(shellType string, localRCPath string) error {
+	session, err := c.NewSession()
+	if err != nil {
+		return fmt.Errorf("failed to create session: %v", err)
+	}
+	defer session.Close()
+
+	var rcFile string
+	var originalRC string
+
+	switch shellType {
+	case "bash":
+		originalRC = "~/.bashrc"
+		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+	case "zsh":
+		originalRC = "~/.zshrc"
+		rcFile = "/tmp/sshrc/.sshrc_zshrc"
+	default:
+		originalRC = "~/.bashrc"
+		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+	}
+
+	// Start with the normal SSHRC temp RC content
+	rcContent := fmt.Sprintf(`# SSHRC Temporary Shell Configuration
+# This file is auto-generated and will be cleaned up on exit
+
+# Source original RC if it exists
+if [ -f %s ]; then
+    source %s
+fi
+
+`, originalRC, originalRC)
+
+	// Append local RC, splitting at # HELPERS marker (robust partial match)
+	data, err := os.ReadFile(localRCPath)
+	if err == nil {
+		lines := strings.Split(string(data), "\n")
+		markerIdx := -1
+		marker := "# HELPERS"
+		for i, line := range lines {
+			if strings.Contains(strings.ToUpper(line), strings.ToUpper(marker)) {
+				markerIdx = i
+				logger.LogStep(fmt.Sprintf("[sshrc] Marker found at line %d", i+1))
+				break
+			}
+		}
+		if markerIdx != -1 {
+			toAdd := strings.Join(lines[markerIdx:], "\n") + "\n"
+			logger.LogStep("[sshrc] Adding lines from marker in local sshrc")
+			rcContent += toAdd
+		} else {
+			logger.LogStep("[sshrc] Marker '# HELPERS' not found in local RC, nothing added from local RC.")
+		}
+	}
+
+	// Always append SSHRC helpers section
+	rcContent += `# Add helper scripts to PATH
+export PATH="/tmp/sshrc/helpers:$PATH"
+
+# Source all helper scripts
+for helper in /tmp/sshrc/helpers/*; do
+    if [ -f "$helper" ] && [ -x "$helper" ]; then
+        source "$helper" 2>/dev/null || true
+    fi
+done
+
+# Launch monitoring script in background only once per connection
+if [ -n "$SSH_TTY" ]; then
+    LOCKFILE="/tmp/sshrc/.monitor_$(basename $SSH_TTY)"
+    if [ ! -f "$LOCKFILE" ]; then
+        touch "$LOCKFILE"
+        nohup /tmp/sshrc/ssh-mon.bash "$SSH_TTY" </dev/null >/dev/null 2>&1 &
+    fi
+fi
+`
 
 	cmd := fmt.Sprintf("cat > %s << 'SSHRC_EOF'\n%s\nSSHRC_EOF\nchmod +x %s", rcFile, rcContent, rcFile)
 
