@@ -77,9 +77,6 @@ sshrc/
 │   └── functions.sh
 └── main.go
 ```
-## License
-
-See LICENSE file for details.
 
 ## Detailed Features
 
