@@ -115,9 +115,9 @@ func (c *Client) CopyMonitoringScript() error {
 	}
 	defer session.Close()
 
-	// Ensure /tmp/sshrc exists, then create remote file and write content
-	remoteDir := "/tmp/sshrc"
-	remotePath := "/tmp/sshrc/ssh-mon.bash"
+	// Ensure sshrcTmpDir exists, then create remote file and write content
+	remoteDir := sshrcTmpDir
+	remotePath := filepath.Join(sshrcTmpDir, "ssh-mon.bash")
 	cmd := fmt.Sprintf("mkdir -p %s && cat > %s && chmod +x %s", remoteDir, remotePath, remotePath)
 
 	stdin, err := session.StdinPipe()
@@ -163,7 +163,7 @@ func (c *Client) CopyHelpers(helpersDir string) ([]string, error) {
 		}
 
 		localPath := filepath.Join(helpersDir, file.Name())
-		remotePath := fmt.Sprintf("/tmp/sshrc/helpers/%s", file.Name())
+		remotePath := filepath.Join(sshrcTmpDir, "helpers", file.Name())
 
 		// Read file content
 		content, err := ioutil.ReadFile(localPath)
@@ -177,7 +177,7 @@ func (c *Client) CopyHelpers(helpersDir string) ([]string, error) {
 			return copiedFiles, fmt.Errorf("failed to create session: %v", err)
 		}
 
-		cmd := fmt.Sprintf("mkdir -p /tmp/sshrc/helpers && cat > %s && chmod +x %s", remotePath, remotePath)
+		cmd := fmt.Sprintf("mkdir -p %s && cat > %s && chmod +x %s", filepath.Join(sshrcTmpDir, "helpers"), remotePath, remotePath)
 		stdin, err := session.StdinPipe()
 		if err != nil {
 			session.Close()
@@ -215,13 +215,13 @@ func (c *Client) SetupShellRC(shellType string) error {
 	switch shellType {
 	case "bash":
 		originalRC = "~/.bashrc"
-		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_bashrc")
 	case "zsh":
 		originalRC = "~/.zshrc"
-		rcFile = "/tmp/sshrc/.sshrc_zshrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_zshrc")
 	default:
 		originalRC = "~/.bashrc"
-		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_bashrc")
 	}
 
 	rcContent := fmt.Sprintf(`#!/bin/bash
@@ -277,13 +277,13 @@ func (c *Client) SetupShellRCWithLocal(shellType string, localRCPath string) err
 	switch shellType {
 	case "bash":
 		originalRC = "~/.bashrc"
-		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_bashrc")
 	case "zsh":
 		originalRC = "~/.zshrc"
-		rcFile = "/tmp/sshrc/.sshrc_zshrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_zshrc")
 	default:
 		originalRC = "~/.bashrc"
-		rcFile = "/tmp/sshrc/.sshrc_bashrc"
+		rcFile = filepath.Join(sshrcTmpDir, ".sshrc_bashrc")
 	}
 
 	// Start with the normal SSHRC temp RC content
