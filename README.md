@@ -4,11 +4,11 @@ Like `sshuttle` but for your shell environment! Bring your local aliases, functi
 
 ## Features
 
-- 🔐 SSH key-based authentication
-- 📦 Auto-copy your helper scripts to remote hosts
-- 📊 Built-in session monitoring with duration tracking
-- 🧹 Auto-cleanup on disconnect (everything removed)
-- 💻 Works with bash and zsh
+-  SSH key-based authentication
+-  Auto-copy your helper scripts to remote hosts
+-  Built-in session monitoring with duration tracking
+-  Auto-cleanup on disconnect (everything removed)
+-  Works with bash and zsh
 
 ## Project Structure
 ```
